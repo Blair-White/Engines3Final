@@ -338,11 +338,12 @@ MonoBehaviour:
   StrongWinds: {fileID: 8300000, guid: a05c0c23d8d4f7146911214f16bff11a, type: 3}
   State: 0
   TransitioningWeather: 0
-  TransitionDuration: 6
+  TransitionDuration: 4
   MaxRaindrops: 1000
   MaxSnowFlakes: 1000
+  ParticleCount: 0
   LightningDelay: 5
-  WeatherCycleTime: 5
+  WeatherCycleTime: 15
   OvercastLighting: 0.672
   RainyLighting: 0.47
   StormLighting: 0.317
@@ -356,7 +357,7 @@ MonoBehaviour:
   IcePatchMaxSize: 1
   IcePatchFillRate: 0.001
   IcePatchColor: {r: 1, g: 1, b: 1, a: 0}
-  WeatherPattern: 
+  WeatherPattern: 00000000010000000200000003000000010000000100000004000000
 --- !u!1 &6758267426172922278
 GameObject:
   m_ObjectHideFlags: 0
@@ -402,7 +403,7 @@ AudioSource:
   m_PlayOnAwake: 1
   m_Volume: 1
   m_Pitch: 1
-  Loop: 0
+  Loop: 1
   Mute: 0
   Spatialize: 0
   SpatializePostEffects: 0

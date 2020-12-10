@@ -17,6 +17,7 @@ public class WeatherController : MonoBehaviour
 
     [Header("Audio Source")]
     public GameObject AudioSourceObject;
+    private AudioClip nextAudioClip;
 
     [Header("Sound Effects")]
     public AudioClip BirdChirping;
@@ -36,9 +37,10 @@ public class WeatherController : MonoBehaviour
     private bool Transitioning;
     [Range(1, 1000)]
     public int MaxRaindrops;
+    private int DesiredRaindrops;
     [Range(1, 1000)]
     public int MaxSnowFlakes;
-    private int ParticleCount;
+    public int ParticleCount;
     [Tooltip("Minimum Time in Seconds Between Lightning Strikes")]
     public float LightningDelay;
     private float LightningTime;
@@ -79,16 +81,15 @@ public class WeatherController : MonoBehaviour
     public float IcePatchFillRate;
     public Color IcePatchColor;
 
-    //Convert to coroutine if time/notlazy
-    private bool LightningStriking, InitiateLightning;
-
     [Header("Weather Pattern")]
     public States[] WeatherPattern;
 
     private int WeatherPatternState;
 
-    private bool isSnowing, isRaining;
-
+    private bool isSnowing, isRaining, isStorming;
+    private float lightningTimer;
+    private int lightningFlash;
+    private bool isLightning;
     // Start is called before the first frame update
     void Start()
     {
@@ -97,13 +98,25 @@ public class WeatherController : MonoBehaviour
             Puddles.Add(puddle);
             puddle.SetActive(false);
         }
-
+        ParticleCount = 0;
         CurrentLighting = 1;
+        AudioSourceObject.GetComponent<AudioSource>().clip = BirdChirping;
+        AudioSourceObject.GetComponent<AudioSource>().Play();
     }
 
     // Update is called once per frame
     void Update()
     {
+        
+        if(isStorming)
+        {
+            lightningTimer += Time.deltaTime;
+            if(lightningTimer >= LightningDelay)
+            {
+                LightningCrash();
+                lightningTimer = 0;
+            }
+        }
         if(!Transitioning)
         {
             WeatherTime += Time.deltaTime;
@@ -113,6 +126,12 @@ public class WeatherController : MonoBehaviour
                 BeginTransition();
                 TransitioningWeather = true;
             }
+            if (AudioSourceObject.GetComponent<AudioSource>().volume < 1)
+            {
+                AudioSourceObject.GetComponent<AudioSource>().volume += 0.001f;
+            }
+
+            
         }
 
         if(Transitioning)
@@ -122,16 +141,44 @@ public class WeatherController : MonoBehaviour
             {
                 TransitionTime = 0;
                 Transitioning = false;
+                TransitioningWeather = false;
                 CurrentLighting = DesiredLightingValue;
             }   
 
+            if(!isRaining && !isSnowing)
+            {
+                if (ParticleCount > 0) ParticleCount -= 2;
+                ParticleSystem ps = RainParticlePrefab.GetComponent<ParticleSystem>();
+                var main = ps.main;
+                main.maxParticles = ParticleCount;
+
+                ps = SnowParticlePrefab.GetComponent<ParticleSystem>();
+                main = ps.main;
+                main.maxParticles = ParticleCount;
+
+
+            }
+
             if(isRaining)
             {
-
+                if(ParticleCount < DesiredRaindrops)
+                { 
+                    ParticleCount += 1;
+                    ParticleSystem ps = RainParticlePrefab.GetComponent<ParticleSystem>();
+                    var main = ps.main;
+                    main.maxParticles = ParticleCount;
+                }
             }
 
             if(isSnowing)
             {
+                if(ParticleCount < MaxSnowFlakes)
+                {
+                    ParticleCount += 1;
+                    ParticleSystem ps = SnowParticlePrefab.GetComponent<ParticleSystem>();
+                    var main = ps.main;
+                    main.maxParticles = ParticleCount;
+                }
 
             }
 
@@ -144,8 +191,33 @@ public class WeatherController : MonoBehaviour
                 CurrentLighting -= 0.001f;
             }
 
+            if(AudioSourceObject.GetComponent<AudioSource>().volume > 0)
+            {
+                AudioSourceObject.GetComponent<AudioSource>().volume -= 0.001f;
+            }
+            else
+            {
+                AudioSourceObject.GetComponent<AudioSource>().clip = nextAudioClip;
+                AudioSourceObject.GetComponent<AudioSource>().Play();
+            }
             GlobalLighting.GetComponent<UnityEngine.Experimental.Rendering.Universal.Light2D>().intensity = CurrentLighting;
         }
+
+        if(isStorming&&isLightning)
+        {
+            
+            lightningFlash++;
+            if (lightningFlash > 332)
+            {
+                LightningFlashPanel.SetActive(true);
+            }
+            if (lightningFlash > 355)
+            {
+                LightningFlashPanel.SetActive(false);
+                isLightning = false;
+            }
+        }
+               
     }
 
     private void BeginTransition()
@@ -168,23 +240,50 @@ public class WeatherController : MonoBehaviour
         {
             case States.Sunny:
                 DesiredLightingValue = SunnyLighting;
-
+                isRaining = false;
+                isSnowing = false;
+                DesiredRaindrops = 0;
+                nextAudioClip = BirdChirping;
+                isStorming = false;
                 break;
             case States.Overcast:
                 DesiredLightingValue = OvercastLighting;
-
+                isRaining = false;
+                isSnowing = false;
+                nextAudioClip = StrongWinds;
+                isStorming = false;
                 break;
             case States.Rainy:
                 DesiredLightingValue = RainyLighting;
-
+                isRaining = true;
+                DesiredRaindrops = MaxRaindrops / 55;
+                isSnowing = false;
+                ParticleCount = 0;
+                RainParticlePrefab.SetActive(true);
+                SnowParticlePrefab.SetActive(false);
+                nextAudioClip = RainFalling;
+                isStorming = false;
                 break;
             case States.Storm:
                 DesiredLightingValue = StormLighting;
-
+                isRaining = true;
+                DesiredRaindrops = MaxRaindrops;
+                isSnowing = false;
+                ParticleCount = 0;
+                RainParticlePrefab.SetActive(true);
+                SnowParticlePrefab.SetActive(false);
+                nextAudioClip = RainFalling;
+                isStorming = true;
                 break;
             case States.Snowing:
                 DesiredLightingValue = SnowyLighting;
-
+                isRaining = false;
+                isSnowing = true;
+                ParticleCount = 0;
+                SnowParticlePrefab.SetActive(true);
+                RainParticlePrefab.SetActive(false);
+                nextAudioClip = StrongWinds;
+                isStorming = false;
                 break;
             default:
                 break;
@@ -199,6 +298,8 @@ public class WeatherController : MonoBehaviour
 
     private void LightningCrash()
     {
-
+        AudioSourceObject.GetComponent<AudioSource>().PlayOneShot(LightningCrashing);
+        lightningFlash = 0;
+        isLightning = true;
     }
 }
